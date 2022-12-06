@@ -64,13 +64,13 @@ fn tower_shooting(
                     transform:Transform { translation: spawn_offset, scale: Vec3::new(0.05,0.05,0.05),..default() },
                     mesh:meshes.add(Mesh::from(shape::Icosphere::default())),
                     material:materials.add(StandardMaterial { 
-                        base_color:Color::ANTIQUE_WHITE,
-                        emissive:Color::RED,
+                        base_color:Color::BLACK,
+                        emissive:Color::ORANGE_RED,
                         ..default()
                     }),
                     ..default()
                 })
-                .insert(Lifetime{timer:Timer::from_seconds(50., TimerMode::Once)})
+                .insert(Lifetime{timer:Timer::from_seconds(10., TimerMode::Once)})
                 .insert(Bullet{now:spawn_offset+bullet_dir,old:spawn_offset})
                 .insert(Name::new("Bullet"));
             });

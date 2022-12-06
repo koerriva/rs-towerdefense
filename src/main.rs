@@ -4,6 +4,7 @@ use std::f32::consts::*;
 use rand::prelude::*;
 use leafwing_input_manager::prelude::*;
 use bevy_mod_picking::*;
+use bevy_hikari::prelude::*;
 
 mod bullet;
 mod target;
@@ -19,7 +20,6 @@ pub use input::*;
 
 fn main() {
     App::new()
-    .insert_resource(ClearColor(Color::ALICE_BLUE))
     .add_plugins(DefaultPlugins.set(
         WindowPlugin {
             window:WindowDescriptor{
@@ -32,6 +32,7 @@ fn main() {
             ..default()
         }
     ))
+    .add_plugin(HikariPlugin)
     .add_startup_system(setup)
     .add_plugin(WorldInspectorPlugin::new())
     .add_plugin(GameAssetsPlugin)
@@ -41,7 +42,6 @@ fn main() {
     .add_plugin(PlayerInputPlugin)
     .add_plugin(InputManagerPlugin::<Action>::default())
     .add_plugins(DefaultPickingPlugins)
-    .add_system(what_is_selected)
     .run();
 }
 
@@ -59,6 +59,10 @@ fn setup(
         ..default()
     })
     .insert(PickingCameraBundle::default())
+    .insert(HikariSettings{
+        indirect_bounces:2,
+        ..default()
+    })
     .insert(Name::new("MainCamera"));
 
     //ground
@@ -74,7 +78,7 @@ fn setup(
     .insert(Name::new("Ground"));
 
     //tower
-    for i in 0..2 {
+    for i in 0..3 {
         let x:f32 = -1.+i as f32 * 1.5;
         let z:f32 = random();
         let speed:f32 = random();
@@ -109,36 +113,6 @@ fn setup(
                 ..default()
             });
         });
-        // .with_children(|cb|{
-        //     cb.spawn(SceneBundle{
-        //         scene:assets.weapon_cannon.clone(),
-        //         transform:Transform::from_xyz(0., 0.15, 0.),
-        //         ..default()
-        //     })
-        //     .insert(Tower{shooting_timer:Timer::from_seconds(1.5, TimerMode::Repeating)})
-        //     .insert(Name::new("Tower"));
-        // });
-
-        // commands.spawn(PbrBundle{
-        //     mesh:assets.tower_base.clone(),
-        //     transform:Transform{
-        //         translation:Vec3::new(x,0.0,z),
-        //         rotation:Quat::from_rotation_y(PI),
-        //         ..default()
-        //     },
-        //     ..default()
-        // })
-        // .with_children(|cb|{
-        //     cb.spawn(SceneBundle{
-        //         scene:assets.weapon_cannon.clone(),
-        //         transform:Transform::from_xyz(0., 0.15, 0.),
-        //         ..default()
-        //     })
-        //     .insert(Tower{shooting_timer:Timer::from_seconds(1.5, TimerMode::Repeating)})
-        //     .insert(Name::new("Tower"));
-        // })
-        // .insert(PickableBundle::default())
-        // .insert(Name::new("TowerBase"));
     }
     
 
@@ -150,7 +124,7 @@ fn setup(
         commands.spawn(SceneBundle{
             scene:assets.enemy_red.clone(),
             transform:Transform{
-                translation:Vec3::new(-2.-i as f32 * 1.5,y*1.5+0.5,z*2.-1.),
+                translation:Vec3::new(-2.-i as f32 * 1.5,y*2.+0.5,z*2.-1.),
                 scale:Vec3::new(0.5,0.5,0.5),
                 ..default()
             },
@@ -160,13 +134,12 @@ fn setup(
         .insert(Health{value:3})
         .insert(Name::new("Target"));
     }
-    
 
     //light
     commands.spawn(DirectionalLightBundle{
         directional_light:DirectionalLight { 
-            color:Color::ALICE_BLUE,
             shadows_enabled:true,
+            illuminance:15000.,
             ..default()
         },
         transform:Transform {
@@ -175,7 +148,8 @@ fn setup(
             ..default()
         },
         ..default()
-    }).insert(Name::new("Sun"));
+    })
+    .insert(Name::new("Sun"));
 
     //fogs
     //input
@@ -187,12 +161,4 @@ fn setup(
         .insert(VirtualDPad::wasd(), Action::Move)
         .build()
     }).insert(PlayerInput);
-}
-
-fn what_is_selected(query:Query<(&Name,&Selection)>){
-    for (name,selection) in query.iter() {
-        if selection.selected() {
-            // println!("selected {}",name);
-        }
-    }
 }
