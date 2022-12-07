@@ -6,9 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = "0.9.0"
+bevy = {version="0.9.0",features=['wav','mp3']}
 bevy-inspector-egui = "0.14.0"
 rand = "0.8.5"
 leafwing-input-manager = "0.7.0"
 bevy_mod_picking = "0.10.0"
 bevy-hikari = "0.3.6"
+bevy_atmosphere = "0.5.0"

@@ -1,8 +1,10 @@
 use std::f32::consts::PI;
 
+use bevy::pbr::NotShadowCaster;
 use bevy::prelude::*;
 use bevy::audio::*;
 use bevy::utils::FloatOrd;
+use bevy_inspector_egui::Inspectable;
 use bevy_mod_picking::Selection;
 
 use crate::assets::*;
@@ -15,14 +17,74 @@ pub struct Tower{
     pub shooting_timer:Timer
 }
 
+#[derive(Inspectable,Component,Clone,Copy,Debug)]
+pub enum TowerType{
+    Cannon,Ballista,Blaster
+} 
+
+impl TowerType {
+    pub fn get_tower(&self,assets:&GameAssets) -> (Handle<Scene>,Tower) {
+        match self {
+            //加农炮
+            TowerType::Cannon => (
+                assets.weapon_cannon.clone(),
+                Tower{ shooting_timer: Timer::from_seconds(2.0, TimerMode::Repeating) }
+            ),
+            //投射机
+            TowerType::Ballista => (
+                assets.weapon_ballista.clone(),
+                Tower{ shooting_timer: Timer::from_seconds(1.0, TimerMode::Repeating) }
+            ),
+            //能量武器
+            TowerType::Blaster => (
+                assets.weapon_blaster.clone(),
+                Tower{ shooting_timer: Timer::from_seconds(0.25, TimerMode::Repeating) }
+            )
+        }
+    }
+
+    pub fn get_bullet(&self,offset:Vec3,bullet_dir:Vec3,assets:&GameAssets) -> (Handle<Scene>,Bullet) {
+        match self {
+            TowerType::Cannon => (
+                assets.cannon_bullet.clone(),
+                Bullet{ 
+                    now: offset+bullet_dir*11.5, old: offset, 
+                    gravity_scalar:0.098, friction_scalar:1.
+                }
+            ),
+            TowerType::Ballista => (
+                assets.ballista_bullet.clone(),
+                Bullet{ 
+                    now: offset+bullet_dir*7.5, old: offset, 
+                    gravity_scalar:0.0098,friction_scalar:1.05
+                }
+            ),
+            TowerType::Blaster => (
+                assets.blaster_bullet.clone(),
+                Bullet{ 
+                    now: offset+bullet_dir*20., old: offset, 
+                    gravity_scalar:0.0,friction_scalar:1.
+                }
+            ),
+        }
+    }
+
+    pub fn get_sfx(&self,assets:&GameAssets) -> Handle<AudioSource> {
+        match self {
+            TowerType::Blaster => assets.blaster_fire_audio.clone(),
+            TowerType::Ballista => assets.ballista_fire_audio.clone(),
+            TowerType::Cannon => assets.cannon_fire_audio.clone(),
+        }
+    }
+}
+
 pub struct TowerPlugin;
 
 impl Plugin for TowerPlugin {
     fn build(&self, app: &mut App) {
         app
         .register_type::<Tower>()
-        .add_system(tower_shooting)
-        .add_system(build_tower);
+        .add_system(tower_shooting);
     }
 }
 
@@ -30,7 +92,7 @@ fn tower_shooting(
     mut commands:Commands,
     mut meshes:ResMut<Assets<Mesh>>,
     mut materials:ResMut<Assets<StandardMaterial>>,
-    mut towers:Query<(Entity,&mut Tower,&GlobalTransform)>,
+    mut towers:Query<(Entity,&mut Tower,&TowerType,&GlobalTransform)>,
     targets:Query<&GlobalTransform,With<Target>>,
     time:Res<Time>,
     assets:Res<GameAssets>,
@@ -39,87 +101,46 @@ fn tower_shooting(
     if targets.iter().count() < 1 {
         return;
     }
-    for (e,mut tower,global_tansform) in towers.iter_mut() {
+    for (e,mut tower,tower_type,global_tansform) in towers.iter_mut() {
         tower.shooting_timer.tick(time.delta());
         if tower.shooting_timer.just_finished() {
             //bullet
             let spawn_offset = Vec3::new(0.,0.25,0.);
             let bullet_spawn_position = global_tansform.translation() + spawn_offset;
             let mut bullet_dir = Vec3::Z;
+            let mut bullet_speed = Vec3::ZERO;
 
             if let Some(closest_target) = targets.iter().min_by_key(|target_transform|{
                 FloatOrd(target_transform.translation().distance(bullet_spawn_position))
             }) {
-                //rotate
-                // local_transform.look_at(closest_target.translation(), Vec3::Y);
                 //dir
-                bullet_dir = (closest_target.translation() - bullet_spawn_position).normalize_or_zero() * time.delta_seconds()*5.;
+                bullet_dir = (closest_target.translation() - bullet_spawn_position).normalize_or_zero();
+                bullet_speed = bullet_dir * time.delta_seconds();
             }
 
             //fix FORWAR
-            bullet_dir *= Vec3::new(-1., 1., -1.);
+            // bullet_dir *= Vec3::new(-1., 1., -1.);
+            bullet_speed *= Vec3::new(-1., 1., -1.);
+
+            let (bullet_model,bullet) = tower_type.get_bullet(spawn_offset,bullet_speed,&assets);
 
             commands.entity(e).with_children(|cb|{
-                cb.spawn(PbrBundle{
-                    transform:Transform { translation: spawn_offset, scale: Vec3::new(0.05,0.05,0.05),..default() },
-                    mesh:meshes.add(Mesh::from(shape::Icosphere::default())),
-                    material:materials.add(StandardMaterial { 
-                        base_color:Color::BLACK,
-                        emissive:Color::ORANGE_RED,
-                        ..default()
-                    }),
+                cb.spawn(SceneBundle{
+                    scene:bullet_model.clone(),
+                    transform:Transform { 
+                        translation: spawn_offset, 
+                        scale: Vec3::new(0.05,0.05,0.05),
+                        rotation: Quat::IDENTITY
+                    },
                     ..default()
                 })
-                .insert(Lifetime{timer:Timer::from_seconds(10., TimerMode::Once)})
-                .insert(Bullet{now:spawn_offset+bullet_dir,old:spawn_offset})
+                .insert(Lifetime{timer:Timer::from_seconds(5., TimerMode::Once)})
+                .insert(bullet)
                 .insert(Name::new("Bullet"));
             });
             
             // audio.play(assets.cannon_fire_audio.clone());
-            audio.play_with_settings(assets.cannon_fire_audio.clone(), PlaybackSettings { repeat: false, volume: 0.4, speed: 1.0 });
+            audio.play_with_settings(tower_type.get_sfx(&assets), PlaybackSettings { repeat: false, volume: 0.4, speed: 1.0 });
         }
     }
-}
-
-fn build_tower(
-    mut commands:Commands,
-    selection:Query<(Entity,&Selection,&Transform)>,
-    keyboard:Res<Input<KeyCode>>,
-    assets:Res<GameAssets>
-){
-    if keyboard.just_pressed(KeyCode::Space) {
-        for (e,selection,transform) in selection.iter() {
-            if selection.selected() {
-                commands.entity(e).despawn_recursive();
-                spawn_cannon_tower(&mut commands, &assets, transform.translation);
-            }
-        }
-    }
-}
-
-fn spawn_cannon_tower(
-    commands:&mut Commands,
-    assets:&GameAssets,
-    position:Vec3,
-) -> Entity {
-    commands.spawn(SceneBundle{
-        scene: assets.tower_base.clone(),
-        transform: Transform{
-            translation: position, 
-            rotation: Quat::from_rotation_y(PI), 
-            scale: Vec3::ONE 
-        },
-        ..default()
-    })
-    .insert(Name::new("TowerBase"))
-    .with_children(|cb|{
-        cb.spawn(SceneBundle{
-            scene:assets.weapon_cannon.clone(),
-            transform:Transform::from_xyz(0., 0.15, 0.),
-            ..default()
-        })
-        .insert(Tower{shooting_timer:Timer::from_seconds(1.5, TimerMode::Repeating)})
-        .insert(Name::new("Tower"));
-    })
-    .id()
 }

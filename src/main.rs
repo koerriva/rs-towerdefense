@@ -5,18 +5,21 @@ use rand::prelude::*;
 use leafwing_input_manager::prelude::*;
 use bevy_mod_picking::*;
 use bevy_hikari::prelude::*;
+use bevy_atmosphere::prelude::*;
 
 mod bullet;
 mod target;
 mod tower;
 mod assets;
 mod input;
+mod ui;
 
 pub use bullet::*;
 pub use target::*;
 pub use tower::*;
 pub use assets::*;
 pub use input::*;
+pub use ui::*;
 
 fn main() {
     App::new()
@@ -32,7 +35,8 @@ fn main() {
             ..default()
         }
     ))
-    .add_plugin(HikariPlugin)
+    // .add_plugin(HikariPlugin)
+    .add_plugin(AtmospherePlugin)
     .add_startup_system(setup)
     .add_plugin(WorldInspectorPlugin::new())
     .add_plugin(GameAssetsPlugin)
@@ -40,6 +44,7 @@ fn main() {
     .add_plugin(TowerPlugin)
     .add_plugin(BulletPlugin)
     .add_plugin(PlayerInputPlugin)
+    .add_plugin(GameUIPlugin)
     .add_plugin(InputManagerPlugin::<Action>::default())
     .add_plugins(DefaultPickingPlugins)
     .run();
@@ -63,14 +68,16 @@ fn setup(
         indirect_bounces:2,
         ..default()
     })
+    .insert(AtmosphereCamera::default())
     .insert(Name::new("MainCamera"));
 
     //ground
     commands.spawn(PbrBundle{
         transform:Transform::from_xyz(0.0,0.0,0.0),
-        mesh:meshes.add(Mesh::from(shape::Plane{size:5.0})),
+        mesh:meshes.add(Mesh::from(shape::Plane{size:50.0})),
         material:materials.add(StandardMaterial { 
             base_color:Color::DARK_GREEN,
+            perceptual_roughness:0.998,
             ..default()
         }),
         ..default()
@@ -79,8 +86,8 @@ fn setup(
 
     //tower
     for i in 0..3 {
-        let x:f32 = -1.+i as f32 * 1.5;
-        let z:f32 = random();
+        let x:f32 = -1.5+i as f32 * 1.5;
+        let z:f32 = -1.;
         let speed:f32 = random();
 
         let default_color = materials.add(Color::rgba(0.3,0.5, 0.3, 0.3).into());
@@ -116,30 +123,16 @@ fn setup(
     }
     
 
-    //target
-    // audio_skin.get(&sfx_strong).expect("dd").stop();
-    for i in 0..30 {
-        let y:f32 = random();
-        let z:f32 = random();
-        commands.spawn(SceneBundle{
-            scene:assets.enemy_red.clone(),
-            transform:Transform{
-                translation:Vec3::new(-2.-i as f32 * 1.5,y*2.+0.5,z*2.-1.),
-                scale:Vec3::new(0.5,0.5,0.5),
-                ..default()
-            },
-            ..default()
-        })
-        .insert(Target{speed:0.5,sfx:assets.enemy_move_audio.clone()})
-        .insert(Health{value:3})
-        .insert(Name::new("Target"));
-    }
+    //target factory
+    commands.spawn(SpatialBundle::default())
+    .insert(TargetFactory{ spawn_timer: Timer::from_seconds(3., TimerMode::Repeating) })
+    .insert(Name::new("TowerFactory"));
 
     //light
     commands.spawn(DirectionalLightBundle{
         directional_light:DirectionalLight { 
             shadows_enabled:true,
-            illuminance:15000.,
+            illuminance:5000.,
             ..default()
         },
         transform:Transform {

@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use bevy::prelude::*;
 use crate::target::*;
 
@@ -11,7 +13,9 @@ pub struct Lifetime{
 #[reflect(Component)]
 pub struct Bullet{
     pub now:Vec3,
-    pub old:Vec3
+    pub old:Vec3,
+    pub gravity_scalar:f32,
+    pub friction_scalar:f32,
 }
 
 pub struct BulletPlugin;
@@ -28,15 +32,24 @@ impl Plugin for BulletPlugin {
 
 fn bullet_move(
     mut commands:Commands,
-    mut query:Query<(&mut Transform, &mut Bullet)>
+    mut query:Query<(&mut Transform, &mut Bullet)>,
+    time:Res<Time>
 ){
     for (mut transform,mut bullet) in query.iter_mut(){
-        let dv = (bullet.now - bullet.old) * 1.0;//friction
+        let dv = (bullet.now - bullet.old) * bullet.friction_scalar;//friction
         bullet.old = bullet.now;
         bullet.now += dv;
-        // bullet.now.y += -0.0002;//gravity
+        bullet.now.y += -1. * time.delta_seconds() * bullet.gravity_scalar;//gravity
 
         transform.translation = bullet.now;
+
+        //rotation
+        let eye = bullet.old;
+        let center = bullet.now;
+        let up = Vec3::Y;
+        let look_at = Mat4::look_at_lh(eye, center, up);
+        transform.rotation = Quat::from_mat4(&look_at);
+        transform.rotate_x(PI);
     }
 }
 
