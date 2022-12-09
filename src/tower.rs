@@ -3,9 +3,11 @@ use std::f32::consts::PI;
 use bevy::pbr::NotShadowCaster;
 use bevy::prelude::*;
 use bevy::audio::*;
+use bevy::transform;
 use bevy::utils::FloatOrd;
 use bevy_inspector_egui::Inspectable;
 use bevy_mod_picking::Selection;
+use leafwing_input_manager::orientation::Orientation;
 
 use crate::assets::*;
 use crate::target::*;
@@ -43,27 +45,27 @@ impl TowerType {
         }
     }
 
-    pub fn get_bullet(&self,offset:Vec3,bullet_dir:Vec3,assets:&GameAssets) -> (Handle<Scene>,Bullet) {
+    pub fn get_bullet(&self,offset:Vec3,bullet_dir:Vec3,time:&Time,assets:&GameAssets) -> (Handle<Scene>,Bullet) {
         match self {
             TowerType::Cannon => (
                 assets.cannon_bullet.clone(),
                 Bullet{ 
-                    now: offset+bullet_dir*11.5, old: offset, 
-                    gravity_scalar:0.098, friction_scalar:1.
+                    new:offset+bullet_dir*time.delta_seconds()*12.5,old:offset,
+                    gravity_scalar:0.098, friction_scalar:0.998
                 }
             ),
             TowerType::Ballista => (
                 assets.ballista_bullet.clone(),
                 Bullet{ 
-                    now: offset+bullet_dir*7.5, old: offset, 
-                    gravity_scalar:0.0098,friction_scalar:1.05
+                    new:offset+bullet_dir*time.delta_seconds()*7.5,old:offset,
+                    gravity_scalar:0.0098, friction_scalar:1.002
                 }
             ),
             TowerType::Blaster => (
                 assets.blaster_bullet.clone(),
                 Bullet{ 
-                    now: offset+bullet_dir*20., old: offset, 
-                    gravity_scalar:0.0,friction_scalar:1.
+                    new:offset+bullet_dir*time.delta_seconds()*20.,old:offset,
+                    gravity_scalar:0., friction_scalar:1.0
                 }
             ),
         }
@@ -92,7 +94,7 @@ fn tower_shooting(
     mut commands:Commands,
     mut meshes:ResMut<Assets<Mesh>>,
     mut materials:ResMut<Assets<StandardMaterial>>,
-    mut towers:Query<(Entity,&mut Tower,&TowerType,&GlobalTransform)>,
+    mut towers:Query<(Entity,&mut Tower,&TowerType,&GlobalTransform,&Transform)>,
     targets:Query<&GlobalTransform,With<Target>>,
     time:Res<Time>,
     assets:Res<GameAssets>,
@@ -101,28 +103,22 @@ fn tower_shooting(
     if targets.iter().count() < 1 {
         return;
     }
-    for (e,mut tower,tower_type,global_tansform) in towers.iter_mut() {
+    for (e,mut tower,tower_type,global_tansform,local_transform) in towers.iter_mut() {
         tower.shooting_timer.tick(time.delta());
         if tower.shooting_timer.just_finished() {
             //bullet
             let spawn_offset = Vec3::new(0.,0.25,0.);
             let bullet_spawn_position = global_tansform.translation() + spawn_offset;
-            let mut bullet_dir = Vec3::Z;
-            let mut bullet_speed = Vec3::ZERO;
+            let mut bullet_dir = Vec3::ZERO;
 
             if let Some(closest_target) = targets.iter().min_by_key(|target_transform|{
                 FloatOrd(target_transform.translation().distance(bullet_spawn_position))
             }) {
                 //dir
-                bullet_dir = (closest_target.translation() - bullet_spawn_position).normalize_or_zero();
-                bullet_speed = bullet_dir * time.delta_seconds();
+                bullet_dir = local_transform.rotation * (closest_target.translation() - bullet_spawn_position).normalize();
             }
 
-            //fix FORWAR
-            // bullet_dir *= Vec3::new(-1., 1., -1.);
-            bullet_speed *= Vec3::new(-1., 1., -1.);
-
-            let (bullet_model,bullet) = tower_type.get_bullet(spawn_offset,bullet_speed,&assets);
+            let (bullet_model,bullet) = tower_type.get_bullet(spawn_offset,bullet_dir,&time,&assets);
 
             commands.entity(e).with_children(|cb|{
                 cb.spawn(SceneBundle{

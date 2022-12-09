@@ -50,7 +50,7 @@ fn target_spawn(
             commands.spawn(SceneBundle{
                 scene:assets.enemy_red.clone(),
                 transform:Transform{
-                    translation:Vec3::new(-3.,1.0,1.5),
+                    translation:Vec3::new(-3.,1.0,0.),
                     scale:Vec3::new(0.5,0.5,0.5),
                     ..default()
                 },
@@ -76,7 +76,7 @@ fn target_move(
 
         if transform.translation.x >= 4. {
             commands.entity(e).despawn_recursive();
-            println!("target destroy!")
+            info!("target destroy!")
         }
     }
 }
@@ -88,7 +88,7 @@ fn target_death(
     for (e,health) in query.iter() {
         if health.value <=0 {
             commands.entity(e).despawn_recursive();
-            println!("target death!")
+            info!("target death!")
         }
     }
 }

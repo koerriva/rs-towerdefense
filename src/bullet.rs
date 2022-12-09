@@ -12,10 +12,10 @@ pub struct Lifetime{
 #[derive(Component,Reflect,Default)]
 #[reflect(Component)]
 pub struct Bullet{
-    pub now:Vec3,
     pub old:Vec3,
-    pub gravity_scalar:f32,
-    pub friction_scalar:f32,
+    pub new:Vec3,
+    pub gravity_scalar:f32,//重力系数
+    pub friction_scalar:f32,//摩擦力系数
 }
 
 pub struct BulletPlugin;
@@ -36,16 +36,17 @@ fn bullet_move(
     time:Res<Time>
 ){
     for (mut transform,mut bullet) in query.iter_mut(){
-        let dv = (bullet.now - bullet.old) * bullet.friction_scalar;//friction
-        bullet.old = bullet.now;
-        bullet.now += dv;
-        bullet.now.y += -1. * time.delta_seconds() * bullet.gravity_scalar;//gravity
+        let dv = (bullet.new - bullet.old) * bullet.friction_scalar;
 
-        transform.translation = bullet.now;
+        bullet.old = bullet.new;
+        bullet.new += dv;
+        bullet.new.y -= time.delta_seconds() * bullet.gravity_scalar;
+
+        transform.translation = bullet.new;
 
         //rotation
         let eye = bullet.old;
-        let center = bullet.now;
+        let center = bullet.new;
         let up = Vec3::Y;
         let look_at = Mat4::look_at_lh(eye, center, up);
         transform.rotation = Quat::from_mat4(&look_at);

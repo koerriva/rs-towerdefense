@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use bevy::prelude::*;
+use bevy::{prelude::*, ecs::query::QuerySingleError};
 use bevy_inspector_egui::*;
 use bevy_mod_picking::*;
 
@@ -11,8 +11,9 @@ pub struct GameUIPlugin;
 impl Plugin for GameUIPlugin {
     fn build(&self, app: &mut App) {
         app
-        .add_startup_system(create_ui)
-        .add_system(tower_button_clicked);
+        // .add_startup_system(create_ui)
+        .add_system(tower_button_clicked)
+        .add_system(create_ui_on_selected);
     }
 }
 
@@ -69,7 +70,7 @@ fn tower_button_clicked(
             for (e,selection,transform) in selection.iter() {
                 if selection.selected() {
                     commands.entity(e).despawn_recursive();
-                    spawn_tower(&mut commands, &assets, tower_type.clone(),transform.translation);
+                    spawn_tower(&mut commands, &assets, tower_type.clone(),transform.translation,transform.rotation);
                 }
             }
         }
@@ -81,6 +82,7 @@ fn spawn_tower(
     assets:&GameAssets,
     tower_type:TowerType,
     position:Vec3,
+    rotation:Quat,
 ) -> Entity {
 
     let (tower_model,tower) = tower_type.get_tower(assets);
@@ -89,7 +91,7 @@ fn spawn_tower(
         scene: assets.tower_base.clone(),
         transform: Transform{
             translation: position, 
-            rotation: Quat::from_rotation_y(PI), 
+            rotation: Quat::IDENTITY, 
             scale: Vec3::ONE 
         },
         ..default()
@@ -98,7 +100,11 @@ fn spawn_tower(
     .with_children(|cb|{
         cb.spawn(SceneBundle{
             scene:tower_model.clone(),
-            transform:Transform::from_xyz(0., 0.15, 0.),
+            transform:Transform { 
+                translation: Vec3::new(0.0,0.15,0.), 
+                rotation: rotation, 
+                scale: Vec3::ONE  
+            },
             ..default()
         })
         .insert(tower)
@@ -106,4 +112,29 @@ fn spawn_tower(
         .insert(Name::new("Tower"));
     })
     .id()
+}
+
+fn create_ui_on_selected(
+    mut commands:Commands,
+    assets:Res<GameAssets>,
+    selection:Query<&Selection>,
+    root:Query<Entity,With<TowerRootUI>>
+){
+    let any_selection = selection.iter().any(|s|{s.selected()});
+    match root.get_single() {
+        Ok(e) => {
+            if !any_selection {
+                info!("hide ui");
+                commands.entity(e).despawn_recursive();
+            }
+        },
+        Err(QuerySingleError::NoEntities(..)) => {
+            if any_selection {
+                create_ui(commands, assets);
+            }
+        },
+        Err(..) => {
+            error!("too many ui roots!")
+        }
+    }
 }

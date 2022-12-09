@@ -74,7 +74,9 @@ fn setup(
     //ground
     commands.spawn(PbrBundle{
         transform:Transform::from_xyz(0.0,0.0,0.0),
-        mesh:meshes.add(Mesh::from(shape::Plane{size:50.0})),
+        mesh:meshes.add(Mesh::from(shape::Plane{
+            size:50.
+        })),
         material:materials.add(StandardMaterial { 
             base_color:Color::DARK_GREEN,
             perceptual_roughness:0.998,
@@ -84,11 +86,15 @@ fn setup(
     })
     .insert(Name::new("Ground"));
 
-    //tower
-    for i in 0..3 {
-        let x:f32 = -1.5+i as f32 * 1.5;
-        let z:f32 = -1.;
-        let speed:f32 = random();
+    //tower base
+    let map = [
+        (-1.5,-2.,PI),(0.,-2.,PI),(1.5,-2.,PI),
+        (-1.5,2.,0.),(0.,2.,0.),(1.5,2.,0.)
+        ];
+    for i in 0..map.len() {
+        let x = map[i].0;
+        let z = map[i].1;
+        let angle = map[i].2;
 
         let default_color = materials.add(Color::rgba(0.3,0.5, 0.3, 0.3).into());
         let selected_color = materials.add(Color::rgba(0.3,0.9, 0.3, 0.9).into());
@@ -96,7 +102,7 @@ fn setup(
         commands
         .spawn(SpatialBundle::from_transform(Transform { 
             translation: Vec3::new(x,0.0,z), 
-            rotation: Quat::from_rotation_y(PI), 
+            rotation: Quat::from_rotation_y(angle), 
             scale: Vec3::ONE 
         }))
         // .insert(meshes.add(Mesh::from(shape::Capsule::default())))
@@ -125,14 +131,14 @@ fn setup(
 
     //target factory
     commands.spawn(SpatialBundle::default())
-    .insert(TargetFactory{ spawn_timer: Timer::from_seconds(3., TimerMode::Repeating) })
+    .insert(TargetFactory{ spawn_timer: Timer::from_seconds(2.5, TimerMode::Repeating) })
     .insert(Name::new("TowerFactory"));
 
     //light
     commands.spawn(DirectionalLightBundle{
         directional_light:DirectionalLight { 
             shadows_enabled:true,
-            illuminance:5000.,
+            illuminance:15000.,
             ..default()
         },
         transform:Transform {
