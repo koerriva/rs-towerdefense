@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy::audio::*;
 use rand::random;
 use crate::assets::*;
 
@@ -66,9 +65,9 @@ fn target_spawn(
 fn target_move(
     mut commands:Commands,
     mut query:Query<(Entity,&Target,&mut Transform)>,
-    assets:Res<GameAssets>,
-    audio_skin:Res<Assets<AudioSink>>,
-    audio:Res<Audio>,
+    // assets:Res<GameAssets>,
+    // audio_skin:Res<Assets<AudioSink>>,
+    // audio:Res<Audio>,
     time:Res<Time>
 ){
     for (e,target,mut transform) in query.iter_mut() {

@@ -1,7 +1,7 @@
-use bevy::{prelude::*, audio::AudioSink, utils::{FloatOrd}, pbr::NotShadowCaster};
+use bevy::{prelude::*, pbr::NotShadowCaster};
 use bevy_inspector_egui::WorldInspectorPlugin;
 use std::f32::consts::*;
-use rand::prelude::*;
+// use rand::prelude::*;
 use leafwing_input_manager::prelude::*;
 use bevy_mod_picking::*;
 use bevy_hikari::prelude::*;
@@ -55,8 +55,8 @@ fn setup(
     mut meshes:ResMut<Assets<Mesh>>,
     mut materials:ResMut<Assets<StandardMaterial>>,
     assets:Res<GameAssets>,
-    audio:Res<Audio>,
-    audio_skin:Res<Assets<AudioSink>>
+    // audio:Res<Audio>,
+    // audio_skin:Res<Assets<AudioSink>>
 ){
     //camera
     commands.spawn(Camera3dBundle{

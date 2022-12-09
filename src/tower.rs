@@ -1,13 +1,6 @@
-use std::f32::consts::PI;
-
-use bevy::pbr::NotShadowCaster;
 use bevy::prelude::*;
-use bevy::audio::*;
-use bevy::transform;
 use bevy::utils::FloatOrd;
 use bevy_inspector_egui::Inspectable;
-use bevy_mod_picking::Selection;
-use leafwing_input_manager::orientation::Orientation;
 
 use crate::assets::*;
 use crate::target::*;
@@ -92,8 +85,8 @@ impl Plugin for TowerPlugin {
 
 fn tower_shooting(
     mut commands:Commands,
-    mut meshes:ResMut<Assets<Mesh>>,
-    mut materials:ResMut<Assets<StandardMaterial>>,
+    // mut meshes:ResMut<Assets<Mesh>>,
+    // mut materials:ResMut<Assets<StandardMaterial>>,
     mut towers:Query<(Entity,&mut Tower,&TowerType,&GlobalTransform,&Transform)>,
     targets:Query<&GlobalTransform,With<Target>>,
     time:Res<Time>,

@@ -31,7 +31,7 @@ impl Plugin for BulletPlugin {
 }
 
 fn bullet_move(
-    mut commands:Commands,
+    // mut commands:Commands,
     mut query:Query<(&mut Transform, &mut Bullet)>,
     time:Res<Time>
 ){
