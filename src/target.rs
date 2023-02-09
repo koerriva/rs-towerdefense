@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use bevy::prelude::*;
 use rand::random;
 use crate::assets::*;
@@ -20,6 +22,9 @@ pub struct Target{
 pub struct Health{
     pub value:i32
 }
+
+#[derive(Component)]
+pub struct TargetDeath;
 
 pub struct TargetPlugin;
 
@@ -49,7 +54,7 @@ fn target_spawn(
             commands.spawn(SceneBundle{
                 scene:assets.enemy_red.clone(),
                 transform:Transform{
-                    translation:Vec3::new(-3.,1.0,0.),
+                    translation:Vec3::new(-4.,speed+0.5,0.),
                     scale:Vec3::new(0.5,0.5,0.5),
                     ..default()
                 },
@@ -64,13 +69,25 @@ fn target_spawn(
 
 fn target_move(
     mut commands:Commands,
-    mut query:Query<(Entity,&Target,&mut Transform)>,
+    mut alive_queue:Query<(Entity,&Target,&mut Transform),Without<TargetDeath>>,
+    mut death_queue:Query<(Entity,&Target,&mut Transform),With<TargetDeath>>,
     // assets:Res<GameAssets>,
     // audio_skin:Res<Assets<AudioSink>>,
     // audio:Res<Audio>,
     time:Res<Time>
 ){
-    for (e,target,mut transform) in query.iter_mut() {
+    for (e,_,mut transform) in death_queue.iter_mut() {
+        transform.translation.y -= 0.98 * time.delta_seconds();
+        transform.rotate_x(time.delta_seconds()*PI);
+        transform.rotate_y(time.delta_seconds()*PI);
+
+        if transform.translation.y < 0. {
+            commands.entity(e).despawn_recursive();
+            info!("target fallout!")
+        }
+    }
+
+    for (e,target,mut transform) in alive_queue.iter_mut() {
         transform.translation.x += target.speed * time.delta_seconds();
 
         if transform.translation.x >= 4. {
@@ -82,11 +99,11 @@ fn target_move(
 
 fn target_death(
     mut commands:Commands,
-    query:Query<(Entity,&Health),With<Target>>
+    query:Query<(Entity,&Health,&Target),Without<TargetDeath>>
 ){
-    for (e,health) in query.iter() {
+    for (e,health,_) in query.iter() {
         if health.value <=0 {
-            commands.entity(e).despawn_recursive();
+            commands.entity(e).insert(TargetDeath);
             info!("target death!")
         }
     }

@@ -88,7 +88,7 @@ fn setup(
 
     //tower base
     let map = [
-        (-1.5,-2.,PI),(0.,-2.,PI),(1.5,-2.,PI),
+        (-1.5,-2.,0.),(0.,-2.,0.),(1.5,-2.,0.),
         (-1.5,2.,0.),(0.,2.,0.),(1.5,2.,0.)
         ];
     for i in 0..map.len() {
@@ -102,7 +102,7 @@ fn setup(
         commands
         .spawn(SpatialBundle::from_transform(Transform { 
             translation: Vec3::new(x,0.0,z), 
-            rotation: Quat::from_rotation_y(angle), 
+            rotation: Quat::IDENTITY, 
             scale: Vec3::ONE 
         }))
         // .insert(meshes.add(Mesh::from(shape::Capsule::default())))

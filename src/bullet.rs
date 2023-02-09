@@ -16,7 +16,13 @@ pub struct Bullet{
     pub new:Vec3,
     pub gravity_scalar:f32,//重力系数
     pub friction_scalar:f32,//摩擦力系数
+    pub is_missile:bool,
+    pub damage:i32,
 }
+
+#[derive(Component,Reflect,Default)]
+#[reflect(Component)]
+pub struct BulletCollector;
 
 pub struct BulletPlugin;
 impl Plugin for BulletPlugin {
@@ -24,33 +30,38 @@ impl Plugin for BulletPlugin {
         app
         .register_type::<Bullet>()
         .register_type::<Lifetime>()
+        .add_startup_system(bullet_collect)
         .add_system(bullet_move)
         .add_system(bullet_destroy)
         .add_system(bullet_collision);
     }
 }
 
+fn bullet_collect(
+    mut commands:Commands
+){
+    commands
+    .spawn(SpatialBundle::default())
+    .insert(BulletCollector)
+    .insert(Name::new("BulletCollector"));
+}
+
 fn bullet_move(
     // mut commands:Commands,
-    mut query:Query<(&mut Transform, &mut Bullet)>,
+    mut bullets:Query<(&mut Transform, &mut Bullet)>,
     time:Res<Time>
 ){
-    for (mut transform,mut bullet) in query.iter_mut(){
+    for (mut transform,mut bullet) in bullets.iter_mut() {
         let dv = (bullet.new - bullet.old) * bullet.friction_scalar;
 
         bullet.old = bullet.new;
         bullet.new += dv;
         bullet.new.y -= time.delta_seconds() * bullet.gravity_scalar;
 
-        transform.translation = bullet.new;
 
-        //rotation
-        let eye = bullet.old;
-        let center = bullet.new;
         let up = Vec3::Y;
-        let look_at = Mat4::look_at_lh(eye, center, up);
-        transform.rotation = Quat::from_mat4(&look_at);
-        transform.rotate_x(PI);
+        transform.look_at(bullet.new, up);
+        transform.translation = bullet.new;
     }
 }
 
@@ -69,14 +80,14 @@ fn bullet_destroy(
 
 fn bullet_collision(
     mut commands:Commands,
-    mut bullets:Query<(Entity,&GlobalTransform),With<Bullet>>,
+    mut bullets:Query<(Entity,&GlobalTransform,&Bullet),With<Bullet>>,
     mut targets:Query<(&GlobalTransform,&mut Health),With<Target>>
 ){
-    for (bullet,bullet_transform) in bullets.iter_mut()  {
+    for (bullet_e,bullet_transform,bullet) in bullets.iter_mut()  {
         for (target_transform,mut health) in targets.iter_mut() {
-            if bullet_transform.translation().distance_squared(target_transform.translation()) < 0.1 {
-                commands.entity(bullet).despawn_recursive();
-                health.value -= 1;
+            if bullet_transform.translation().distance(target_transform.translation()) < 0.2 {
+                commands.entity(bullet_e).despawn_recursive();
+                health.value -= bullet.damage;
                 break;
             }
         }

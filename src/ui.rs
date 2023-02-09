@@ -99,7 +99,7 @@ fn spawn_tower(
             scene:tower_model.clone(),
             transform:Transform { 
                 translation: Vec3::new(0.0,0.15,0.), 
-                rotation: rotation, 
+                rotation: Quat::IDENTITY, 
                 scale: Vec3::ONE  
             },
             ..default()
